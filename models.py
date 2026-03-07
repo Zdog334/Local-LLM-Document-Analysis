@@ -12,7 +12,7 @@ from functools import lru_cache
 _embedder = None  # global variable for the embedding model
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2.5:1.5b"
+MODEL_NAME = None
 MAX_TOKENS = 25000
 
 __all__ = ["embed", "generate", "trim_to_tokens", "count_tokens", "MAX_TOKENS"]
@@ -80,10 +80,7 @@ def generate(prompt: str, model: str = MODEL_NAME, timeout_seconds: int = 180) -
     Sends the prompt to Ollama's local API. Expects a JSON response containing "response".
     Raises clear errors if the server is unreachable or returns unexpected data.
     """
-    try:
-        import requests
-    except Exception:
-        raise ImportError("The 'requests' package is required. Install with 'pip install requests'.")
+    
 
     payload = {
         "model": model,
@@ -98,6 +95,9 @@ def generate(prompt: str, model: str = MODEL_NAME, timeout_seconds: int = 180) -
             f"Failed to connect to Ollama at {OLLAMA_URL}. Make sure Ollama is running and the model is loaded. "
             f"Original error: {e}"
         )
+    
+    if resp.status_code == 404:
+        raise RuntimeError(f"Ollama couldn't find the model '{model}'")
 
     if resp.status_code != 200:
         raise RuntimeError(f"Ollama returned status {resp.status_code}: {resp.text}")

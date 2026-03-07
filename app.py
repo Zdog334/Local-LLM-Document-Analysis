@@ -3,11 +3,13 @@ import json
 import faiss
 import numpy as np
 from models import embed, generate
+import subprocess
 
 VECTOR_DIR = "vector_store"
 
 # global configuration
 CURRENT_LANGUAGE = None
+CURRENT_MODEL = None
 
 def set_language(lang):
     """Set the language that future responses should be forced into.
@@ -87,6 +89,31 @@ Indicate which document(s) each part of the answer is based on, using [[filename
 
     prompt += f"\nContext:\n{context}\n\nQuestion: {query}\n"
 
-    answer = generate(prompt)
+    answer = generate(prompt, CURRENT_MODEL)
 
     return answer, top_results
+
+def get_installed_models():
+    try:
+        result = subprocess.run(
+            ["ollama", "list"],
+            capture_output=True,
+            text=True
+        )
+        
+        lines = result.stdout.splitlines()[1:]
+        models = []
+        
+        for line in lines:
+            name = line.split()[0]
+            models.append(name)
+        
+        return models
+
+    except Exception:
+        return []
+
+
+def set_model(name):
+    global CURRENT_MODEL
+    CURRENT_MODEL = name

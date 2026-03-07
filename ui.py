@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.compare)
         self.stack.addWidget(self.settings)
 
-        self.sidebar.page_changed.connect(self.stack.setCurrentIndex)
+        self.sidebar.page_changed.connect(self.attempt_page_switch)
 
         layout.addWidget(self.sidebar, 1)
         layout.addWidget(self.stack, 6)
@@ -47,7 +47,6 @@ class MainWindow(QMainWindow):
         # update sidebar selection to match the destination page
         if len(selected_files) == 1:
             self.sidebar.switch(1)  # Analysis button
-            self.stack.setCurrentIndex(1)  # Analysis page
 
             filename = selected_files[0]
             full_path = os.path.join("documents", filename)
@@ -56,9 +55,37 @@ class MainWindow(QMainWindow):
             self.analysis.load_document(full_path)
         else:
             self.sidebar.switch(2)  # Compare button
-            self.stack.setCurrentIndex(2)  # Compare page
             self.compare.set_active_documents(selected_files)
 
+    def attempt_page_switch(self, target_index):
+        current_index = self.stack.currentIndex()
+        if current_index == target_index:
+            return
+
+        current_widget = self.stack.currentWidget()
+
+        if current_widget == self.settings and self.settings.has_unsaved_changes():
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Unsaved Changes")
+            msg_box.setText("You have unsaved changes. What would you like to do?")
+            msg_box.setIcon(QMessageBox.Question)
+            save_button = msg_box.addButton("Save", QMessageBox.AcceptRole)
+            discard_button = msg_box.addButton("Discard", QMessageBox.DestructiveRole)
+            cancel_button = msg_box.addButton("Cancel", QMessageBox.RejectRole)
+            
+            msg_box.exec()
+            clicked_button = msg_box.clickedButton()
+
+            if clicked_button == save_button:
+                self.settings.apply_changes()
+            elif clicked_button == discard_button:
+                self.settings.discard_changes()
+            else: # Cancel
+                self.sidebar.set_active_button(current_index)
+                return
+
+        self.stack.setCurrentIndex(target_index)
+        self.sidebar.set_active_button(target_index)
 
 
 class Sidebar(QWidget):
@@ -92,10 +119,13 @@ class Sidebar(QWidget):
         layout.addStretch()
 
     def switch(self, index):
-        for b in self.buttons:
-            b.setChecked(False)
-        self.buttons[index].setChecked(True)
         self.page_changed.emit(index)
+
+    def set_active_button(self, index):
+        for i, button in enumerate(self.buttons):
+            button.blockSignals(True)
+            button.setChecked(i == index)
+            button.blockSignals(False)
 
     def style(self):
         return """
