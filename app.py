@@ -117,3 +117,12 @@ def get_installed_models():
 def set_model(name):
     global CURRENT_MODEL
     CURRENT_MODEL = name
+
+def initialize_default_model():
+    """Checks for installed models and sets the first one as the default if none is set."""
+    global CURRENT_MODEL
+    if not CURRENT_MODEL:
+        models = get_installed_models()
+        if models:
+            print(f"No model selected. Defaulting to first available: {models[0]}")
+            set_model(models[0])

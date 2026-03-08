@@ -1,3 +1,15 @@
+import sys
+
+# Fix for PyInstaller --noconsole mode where sys.stdout is None
+# This prevents crashes in libraries like 'transformers' that check sys.stdout.isatty()
+if sys.stdout is None:
+    class NullWriter:
+        def write(self, text): pass
+        def flush(self): pass
+        def isatty(self): return False
+    sys.stdout = NullWriter()
+    sys.stderr = NullWriter()
+
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
@@ -6,6 +18,7 @@ from library_page import LibraryPage
 from analysis_page import AnalysisPage
 from compare_page import ComparePage
 from settings_page import SettingsPage
+from app import initialize_default_model
 import os
 
 
@@ -149,6 +162,7 @@ class Sidebar(QWidget):
 
 if __name__ == "__main__":
     app = QApplication([])
+    initialize_default_model()
     window = MainWindow()
     window.show()
     app.exec()
