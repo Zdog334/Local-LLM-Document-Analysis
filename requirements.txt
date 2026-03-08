@@ -1,0 +1,8 @@
+PySide6
+faiss-cpu
+numpy
+sentence-transformers
+torch
+requests
+pypdf
+pyinstaller

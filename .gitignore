@@ -1,2 +1,23 @@
-vector_store/
-documents/
+# PyInstaller build
+/dist/
+/build/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Enviroments
+.env
+venv/
+.venv/
+
+# Runtime data
+/documents/
+/vector_store/
+
+# IDE config
+.vscode/
+.idea/
