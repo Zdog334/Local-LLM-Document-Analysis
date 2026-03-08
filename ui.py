@@ -57,6 +57,8 @@ class MainWindow(QMainWindow):
             self.sidebar.switch(2)  # Compare button
             self.compare.set_active_documents(selected_files)
 
+        self.library.clear_selection()
+
     def attempt_page_switch(self, target_index):
         current_index = self.stack.currentIndex()
         if current_index == target_index:

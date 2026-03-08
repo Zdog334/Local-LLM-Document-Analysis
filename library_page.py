@@ -3,7 +3,7 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 import os, shutil
 
-from ingest import ingest_file
+from ingest import ingest_file, VECTOR_DIR
 
 
 class LibraryPage(QWidget):
@@ -26,7 +26,11 @@ class LibraryPage(QWidget):
         self.compare_btn = QPushButton("⚖ Compare Selected")
         self.compare_btn.clicked.connect(self.compare_selected)
 
+        self.delete_btn = QPushButton("🗑 Delete")
+        self.delete_btn.clicked.connect(self.delete_docs)
+
         top.addWidget(self.compare_btn)
+        top.addWidget(self.delete_btn)
         top.addWidget(self.search)
         top.addWidget(self.import_btn)
 
@@ -122,4 +126,32 @@ class LibraryPage(QWidget):
         files = [item.data(Qt.UserRole) for item in selected]
         self.document_selected.emit(files)
 
+    def delete_docs(self):
+        selected = self.grid.selectedItems()
+        if not selected:
+            return
+        
+        if QMessageBox.question(self, "Delete", f"Delete {len(selected)} document(s)?") != QMessageBox.Yes:
+            return
 
+        for item in selected:
+            filename = item.data(Qt.UserRole)
+            
+            # Remove source file
+            doc_path = os.path.join("documents", filename)
+            if os.path.exists(doc_path):
+                os.remove(doc_path)
+            
+            # Remove index files
+            index_path = os.path.join(VECTOR_DIR, f"{filename}.index")
+            json_path = os.path.join(VECTOR_DIR, f"{filename}.json")
+            
+            if os.path.exists(index_path):
+                os.remove(index_path)
+            if os.path.exists(json_path):
+                os.remove(json_path)
+        
+        self.load_library()
+
+    def clear_selection(self):
+        self.grid.clearSelection()
