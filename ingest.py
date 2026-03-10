@@ -6,6 +6,7 @@ import faiss
 import numpy as np
 from pypdf import PdfReader
 from models import embed
+import unicodedata
 
 DIM = 384
 VECTOR_DIR = "vector_store"
@@ -13,6 +14,20 @@ VECTOR_DIR = "vector_store"
 os.makedirs(VECTOR_DIR, exist_ok=True)
 os.makedirs("documents", exist_ok=True)
 
+
+def get_storage_filename(original_filename: str) -> str:
+    """
+    Creates a filesystem-safe version of a filename.
+    This is to prevent issues with libraries (like faiss) that may not
+    handle special characters (e.g., accents) in paths correctly.
+    It decomposes unicode characters and removes accents.
+    Example: 'tílde.pdf' -> 'tilde.pdf'
+    """
+    # Normalize to NFD form to separate base characters from combining marks
+    normalized = unicodedata.normalize('NFD', original_filename)
+    # Remove combining marks (diacritics)
+    storage_name = "".join(c for c in normalized if unicodedata.category(c) != 'Mn')
+    return storage_name
 
 # -------------------------
 # File Reader
@@ -51,6 +66,7 @@ def ingest_file(path):
         return
 
     filename = os.path.basename(path)
+    storage_filename = get_storage_filename(filename)
 
     print("Indexing:", filename)
 
@@ -72,8 +88,8 @@ def ingest_file(path):
     index.add(vectors)
 
     # Save per-file index
-    index_path = os.path.join(VECTOR_DIR, f"{filename}.index")
-    json_path = os.path.join(VECTOR_DIR, f"{filename}.json")
+    index_path = os.path.join(VECTOR_DIR, f"{storage_filename}.index")
+    json_path = os.path.join(VECTOR_DIR, f"{storage_filename}.json")
 
     faiss.write_index(index, index_path)
 

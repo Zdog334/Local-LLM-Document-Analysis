@@ -3,7 +3,7 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 import os, shutil
 
-from ingest import ingest_file, VECTOR_DIR
+from ingest import ingest_file, VECTOR_DIR, get_storage_filename
 
 
 class LibraryPage(QWidget):
@@ -136,6 +136,7 @@ class LibraryPage(QWidget):
 
         for item in selected:
             filename = item.data(Qt.UserRole)
+            storage_filename = get_storage_filename(filename)
             
             # Remove source file
             doc_path = os.path.join("documents", filename)
@@ -143,8 +144,8 @@ class LibraryPage(QWidget):
                 os.remove(doc_path)
             
             # Remove index files
-            index_path = os.path.join(VECTOR_DIR, f"{filename}.index")
-            json_path = os.path.join(VECTOR_DIR, f"{filename}.json")
+            index_path = os.path.join(VECTOR_DIR, f"{storage_filename}.index")
+            json_path = os.path.join(VECTOR_DIR, f"{storage_filename}.json")
             
             if os.path.exists(index_path):
                 os.remove(index_path)

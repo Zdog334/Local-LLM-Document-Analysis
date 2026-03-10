@@ -2,6 +2,7 @@ import os
 import json
 import faiss
 import numpy as np
+from ingest import get_storage_filename
 from models import embed, generate
 import subprocess
 
@@ -20,8 +21,9 @@ def set_language(lang):
 
 
 def load_file_index(filename):
-    index_path = os.path.join(VECTOR_DIR, f"{filename}.index")
-    store_path = os.path.join(VECTOR_DIR, f"{filename}.json")
+    storage_filename = get_storage_filename(filename)
+    index_path = os.path.join(VECTOR_DIR, f"{storage_filename}.index")
+    store_path = os.path.join(VECTOR_DIR, f"{storage_filename}.json")
 
     if not os.path.exists(index_path) or not os.path.exists(store_path):
         return None, None
