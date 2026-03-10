@@ -5,12 +5,10 @@ import json
 import faiss
 import numpy as np
 from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
+from models import embed
 
 DIM = 384
 VECTOR_DIR = "vector_store"
-
-embedder = SentenceTransformer("intfloat/multilingual-e5-small")
 
 os.makedirs(VECTOR_DIR, exist_ok=True)
 os.makedirs("documents", exist_ok=True)
@@ -68,7 +66,7 @@ def ingest_file(path):
         print("⚠ No chunks generated for:", filename)
         return
 
-    vectors = embedder.encode(file_chunks).astype("float32")
+    vectors = embed(file_chunks).astype("float32")
 
     index = faiss.IndexFlatL2(DIM)
     index.add(vectors)

@@ -17,16 +17,38 @@ from PySide6.QtGui import *
 from library_page import LibraryPage
 from analysis_page import AnalysisPage
 from compare_page import ComparePage
-from settings_page import SettingsPage
-from app import initialize_default_model
+from settings_page import SettingsPage 
 import os
 
+# Import modules for background tasks
+import app
+import models
+
+class InitWorker(QObject):
+    """
+    Worker to handle slow initialization tasks in the background.
+    """
+    log_message = Signal(str)
+    finished = Signal()
+
+    def run(self):
+        self.log_message.emit("Pre-loading embedding model...")
+        # This can be slow, so it runs in the background
+        models._load_embedder()
+        self.log_message.emit("✔ Embedding model ready.")
+        self.finished.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Local AI Document Studio")
         self.resize(1500,900)
+
+        # Add a status bar for feedback early
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        self.show_status_message("Initializing...")
+        QApplication.processEvents() # Allow UI to update
 
         root = QWidget()
         layout = QHBoxLayout(root)
@@ -35,10 +57,16 @@ class MainWindow(QMainWindow):
         self.sidebar = Sidebar()
         self.stack = QStackedWidget()
 
+        # --- Synchronous Ollama Model Fetching ---
+        self.show_status_message("Fetching Ollama models...")
+        QApplication.processEvents()
+        ollama_models = app.initialize_and_get_models()
+        self.show_status_message("✔ Ollama models loaded.")
+
         self.library = LibraryPage()
         self.analysis = AnalysisPage()
         self.compare = ComparePage()
-        self.settings = SettingsPage()
+        self.settings = SettingsPage(ollama_models)
 
         self.library.document_selected.connect(self.open_document)
 
@@ -53,6 +81,24 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.stack, 6)
 
         self.setCentralWidget(root)
+
+        # --- Background Initialization ---
+        self.init_thread = QThread()
+        self.init_worker = InitWorker()
+        self.init_worker.moveToThread(self.init_thread)
+
+        # Connect signals
+        self.init_thread.started.connect(self.init_worker.run)
+        self.init_worker.finished.connect(self.init_thread.quit)
+        self.init_worker.finished.connect(self.init_worker.deleteLater)
+        self.init_thread.finished.connect(self.init_thread.deleteLater)
+        
+        self.init_worker.log_message.connect(self.show_status_message)
+
+        # Start the background work
+        self.init_thread.start()
+
+
     def open_document(self, selected_files):
         if not selected_files:
             return
@@ -102,6 +148,8 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(target_index)
         self.sidebar.set_active_button(target_index)
 
+    def show_status_message(self, message):
+        self.statusBar.showMessage(message, 5000) # Show for 5 seconds
 
 class Sidebar(QWidget):
     page_changed = Signal(int)
@@ -161,8 +209,7 @@ class Sidebar(QWidget):
         
 
 if __name__ == "__main__":
-    app = QApplication([])
-    initialize_default_model()
+    q_application = QApplication([])
     window = MainWindow()
     window.show()
-    app.exec()
+    q_application.exec()

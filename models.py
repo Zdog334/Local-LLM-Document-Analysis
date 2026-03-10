@@ -3,13 +3,36 @@
 Robust helper module for embeddings, token counting and Ollama generation.
 This file uses lazy imports to avoid import-time failures and gives clear errors.
 """
+import os
+import requests
+
+# --- CRITICAL: Set offline mode BEFORE importing transformers/sentence-transformers ---
+def _check_and_set_offline_mode():
+    """
+    Checks for an internet connection. If unavailable, sets an environment
+    variable to force Hugging Face Hub into offline mode. This must be done
+    before importing the library to be effective.
+    """
+    try:
+        # Try to connect to a reliable host with a short timeout
+        requests.head("https://huggingface.co", timeout=2)
+        print("✔ Internet connection detected.")
+    except requests.exceptions.RequestException: # Catch all request-related errors
+        print("⚠ No internet connection. Forcing Hugging Face Hub to offline mode.")
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
+_check_and_set_offline_mode()
+
 import torch
 from sentence_transformers import SentenceTransformer
 import numpy as np
-import requests
 from functools import lru_cache
 
 _embedder = None  # global variable for the embedding model
+
+# Define a persistent cache directory in the user's home folder
+CACHE_DIR = os.path.join(os.path.expanduser("~"), ".local_ai_studio_cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = None
@@ -55,13 +78,42 @@ def trim_to_tokens(text: str, max_tokens: int = MAX_TOKENS) -> str:
 @lru_cache(maxsize=1)
 def _load_embedder():
     global _embedder
-    if _embedder is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        print("Embedding device:", device)
-        _embedder = SentenceTransformer("intfloat/multilingual-e5-small", device=device)
-    return _embedder
+    if _embedder is not None:
+        return _embedder
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model_name = "intfloat/multilingual-e5-small"
+    print("Embedding device:", device)
 
+    # 1. Try to load from cache first (offline-friendly)
+    try:
+        print(f"Attempting to load embedding model from local cache: {CACHE_DIR}")
+        _embedder = SentenceTransformer(
+            model_name,
+            device=device,
+            cache_folder=CACHE_DIR,
+            trust_remote_code=True,
+            local_files_only=True
+        )
+        print("✔ Embedding model loaded from cache.")
+        return _embedder
+    except Exception:
+        print(f"⚠ Local model not found in cache. Attempting to download...")
+
+    # 2. If it fails, try to download (requires internet)
+    try:
+        _embedder = SentenceTransformer(
+            model_name,
+            device=device,
+            cache_folder=CACHE_DIR,
+            trust_remote_code=True
+        )
+        print("✔ Embedding model downloaded and loaded.")
+        return _embedder
+    except Exception as e:
+        raise ConnectionError(
+            "Could not load embedding model. Please ensure you have an internet connection the first time you use this feature."
+        ) from e
 
 def embed(texts):
     model = _load_embedder()
@@ -69,7 +121,7 @@ def embed(texts):
         texts,
         batch_size=64,
         convert_to_numpy=True,
-        show_progress_bar=True
+        show_progress_bar=False # Disabled for GUI
     )
 
 
@@ -80,7 +132,9 @@ def generate(prompt: str, model: str = MODEL_NAME, timeout_seconds: int = 180) -
     Sends the prompt to Ollama's local API. Expects a JSON response containing "response".
     Raises clear errors if the server is unreachable or returns unexpected data.
     """
-    
+    if not model or model == "No models found":
+        raise ValueError("No LLM model is selected. Please go to Settings and choose a model.")
+
 
     payload = {
         "model": model,

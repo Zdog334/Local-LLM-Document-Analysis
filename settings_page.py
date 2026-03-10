@@ -12,7 +12,7 @@ LANGUAGES = [
 
 
 class SettingsPage(QWidget):
-    def __init__(self):
+    def __init__(self, ollama_models=None):
         super().__init__()
         self.has_changes = False
         self.original_lang = "(None)"
@@ -57,36 +57,36 @@ class SettingsPage(QWidget):
         layout.addWidget(self.actions_widget)
 
         # Load initial state and connect signals
-        self.load_and_set_initial_state()
+        self.load_initial_state(ollama_models)
 
         self.lang_combo.currentTextChanged.connect(self.check_for_changes)
         self.model_combo.currentTextChanged.connect(self.check_for_changes)
-        
+
         self.accept_button.clicked.connect(self.apply_changes)
         self.cancel_button.clicked.connect(self.discard_changes)
 
         self.actions_widget.hide()
 
-    def load_and_set_initial_state(self):
-        self.lang_combo.blockSignals(True)
+    def load_initial_state(self, models):
+        """Populates controls with initial data."""
+        from app import CURRENT_MODEL, CURRENT_LANGUAGE
+
+        # --- Models ---
         self.model_combo.blockSignals(True)
-
-        from app import get_installed_models, CURRENT_MODEL, CURRENT_LANGUAGE
-        models = get_installed_models()
-        if not models:
-            models = ["No models found"]
-        
+        display_models = models if models else ["No models found"]
         self.model_combo.clear()
-        self.model_combo.addItems(models)
+        self.model_combo.addItems(display_models)
         
-        self.original_model = CURRENT_MODEL if CURRENT_MODEL in models else models[0]
-        self.model_combo.setCurrentText(self.original_model)
+        current_selection = CURRENT_MODEL if CURRENT_MODEL and CURRENT_MODEL in display_models else display_models[0]
+        self.model_combo.setCurrentText(current_selection)
+        self.original_model = current_selection
+        self.model_combo.blockSignals(False)
 
+        # --- Language ---
+        self.lang_combo.blockSignals(True)
         self.original_lang = CURRENT_LANGUAGE if CURRENT_LANGUAGE else "(None)"
         self.lang_combo.setCurrentText(self.original_lang)
-
         self.lang_combo.blockSignals(False)
-        self.model_combo.blockSignals(False)
 
         self.has_changes = False
         self.actions_widget.hide()
@@ -107,11 +107,25 @@ class SettingsPage(QWidget):
         
         new_lang = self.lang_combo.currentText()
         set_language(None if new_lang == "(None)" else new_lang)
+        self.original_lang = new_lang
         
         new_model = self.model_combo.currentText()
         set_model(new_model)
-        
-        self.load_and_set_initial_state()
+        self.original_model = new_model
+
+        self.has_changes = False
+        self.actions_widget.hide()
 
     def discard_changes(self):
-        self.load_and_set_initial_state()
+        """Resets the selection to the original values."""
+        self.lang_combo.blockSignals(True)
+        self.model_combo.blockSignals(True)
+
+        self.lang_combo.setCurrentText(self.original_lang)
+        self.model_combo.setCurrentText(self.original_model)
+
+        self.lang_combo.blockSignals(False)
+        self.model_combo.blockSignals(False)
+
+        self.has_changes = False
+        self.actions_widget.hide()

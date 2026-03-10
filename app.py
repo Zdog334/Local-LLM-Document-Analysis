@@ -118,11 +118,17 @@ def set_model(name):
     global CURRENT_MODEL
     CURRENT_MODEL = name
 
-def initialize_default_model():
-    """Checks for installed models and sets the first one as the default if none is set."""
+def initialize_and_get_models():
+    """
+    Synchronously fetches installed Ollama models, sets the first as default,
+    and returns the list of models.
+    """
     global CURRENT_MODEL
-    if not CURRENT_MODEL:
-        models = get_installed_models()
-        if models:
-            print(f"No model selected. Defaulting to first available: {models[0]}")
-            set_model(models[0])
+    models = get_installed_models()
+    if not CURRENT_MODEL and models:
+        print(f"Ollama models found. Defaulting to first available: {models[0]}")
+        set_model(models[0])
+    elif not models:
+        print("No Ollama models found. Make sure Ollama is running.")
+        set_model(None) # Ensure no model is selected if none are found
+    return models

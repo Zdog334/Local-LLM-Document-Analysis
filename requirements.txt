@@ -6,3 +6,4 @@ torch
 requests
 pypdf
 pyinstaller
+tiktoken
